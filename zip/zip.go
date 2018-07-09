@@ -17,7 +17,8 @@ import (
 // the folder as its only item (with contents inside).
 //
 // If progress is not nil, it is called for each file added to the archive.
-func Archive(inFilePath string, writer io.Writer, progress ProgressFunc) error {
+// If pathModifier is not nil, it is called for each file added to the archive.
+func Archive(inFilePath string, writer io.Writer, progress ProgressFunc, pathModifier ArchivePathModifierFunc) error {
 	zipWriter := zip_impl.NewWriter(writer)
 
 	basePath := filepath.Dir(inFilePath)
@@ -36,6 +37,10 @@ func Archive(inFilePath string, writer io.Writer, progress ProgressFunc) error {
 
 		if progress != nil {
 			progress(archivePath)
+		}
+
+		if pathModifier != nil {
+			archivePath = pathModifier(archivePath)
 		}
 
 		file, err := os.Open(filePath)
@@ -64,7 +69,7 @@ func Archive(inFilePath string, writer io.Writer, progress ProgressFunc) error {
 // ArchiveFile compresses a file/directory to a file
 //
 // See Archive() doc
-func ArchiveFile(inFilePath string, outFilePath string, progress ProgressFunc) error {
+func ArchiveFile(inFilePath string, outFilePath string, progress ProgressFunc, pathModifier ArchivePathModifierFunc) error {
 	outFile, err := os.Create(outFilePath)
 	if err != nil {
 		return err
@@ -73,7 +78,7 @@ func ArchiveFile(inFilePath string, outFilePath string, progress ProgressFunc) e
 		_ = outFile.Close()
 	}()
 
-	return Archive(inFilePath, outFile, progress)
+	return Archive(inFilePath, outFile, progress, pathModifier)
 }
 
 // Unarchive decompresses a reader to a directory
@@ -158,3 +163,6 @@ func unarchiveFile(zipFile *zip_impl.File, outFilePath string, progress Progress
 
 // ProgressFunc is the type of the function called for each archive file.
 type ProgressFunc func(archivePath string)
+
+// ArchivePathModifierFunc is the type of the function called for each archive file to allow changes to that path within the archive.
+type ArchivePathModifierFunc func(archivePath string) string
